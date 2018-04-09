@@ -1936,8 +1936,8 @@ main(int argc, char **argv) {
     redirect_stdio(TEMPORARY_LOG_FILE);
     //redirect log to serial output
 #ifdef LogToSerial
-    freopen("/dev/ttyFIQ0", "a", stdout); setbuf(stdout, NULL);
-    freopen("/dev/ttyFIQ0", "a", stderr); setbuf(stderr, NULL);
+    freopen("/dev/ttyS2", "a", stdout); setbuf(stdout, NULL);
+    freopen("/dev/ttyS2", "a", stderr); setbuf(stderr, NULL);
 #endif
     bool bFreeArg=false;
     bool bSDBoot=false;
