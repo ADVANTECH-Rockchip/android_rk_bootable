@@ -34,6 +34,9 @@ ifeq ($(strip $(TARGET_BOARD_PLATFORM)), rk3399)
 LOCAL_CFLAGS += -DDisableBoxSelinux
 endif
 endif
+ifneq ($(filter px5%, $(PRODUCT_BUILD_MODULE)), )
+LOCAL_CFLAGS += -DDisableBoxSelinux
+endif
 
 LOCAL_STATIC_LIBRARIES += $(TARGET_RECOVERY_UPDATER_LIBS) $(TARGET_RECOVERY_UPDATER_EXTRA_LIBS)
 LOCAL_STATIC_LIBRARIES += libapplypatch libedify libmtdutils libminzip libz

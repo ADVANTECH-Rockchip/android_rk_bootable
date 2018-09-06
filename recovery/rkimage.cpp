@@ -298,7 +298,7 @@ RKIMAGE_ITEM* FindItem(RKIMAGE_HDR* prkimage, const char* name)
 	return NULL;
 }
 
-extern unsigned long CRC_32_NEW( unsigned char * aData, unsigned long aSize, unsigned long prev_crc );
+extern unsigned long CRC_32_NEW( unsigned char * aData, unsigned int aSize, unsigned int prev_crc );
 extern "C" int check_image_rsa(const char* imageFilePath, unsigned int fwOffset, unsigned int fwsize);
 /*
     success return 0
@@ -308,7 +308,7 @@ int check_image_crc(const char* mtddevname, unsigned long image_size)
 {
 	int size = 32<<9;
 	char buffer[16*1024] = "";
-	unsigned long crc = 0;
+	unsigned int crc = 0;
 	int remain = image_size;
 	int read_count = 0;
 	int r=0;
@@ -349,10 +349,10 @@ int check_image_crc(const char* mtddevname, unsigned long image_size)
     file_offset += read_count;
     
 	close(fdread);
-	if( crc != *(unsigned long*)buffer )
+	if( crc != *(unsigned int*)buffer )
 	{
 		LOGE("Check failed\n");
-        	LOGI("crc = %04lx  buffer=%04lx \n", crc, *(unsigned long*)buffer);
+		LOGI("crc = %04lx  buffer=%04lx \n", crc, *(unsigned int*)buffer);
 		return -1;
 	}
 
@@ -1896,32 +1896,58 @@ int install_rkimage(const char* update_file) {
     ui->SetBackground(RecoveryUI::INSTALLING_UPDATE);
     ui->Print("Finding update package...\n");
     ui->ShowProgress(0, 0);
-	
     memset(&g_imagehdr, 0, sizeof(g_imagehdr));
     RKIMAGE_HDR *hdr = &g_imagehdr;
-	
     ui->Print("=== UPDATE RKIMAGE===\n");
 
     ui->Print("Find and check firmware...\n");
 
     g_src_isFile = true;
-    
     ui->ShowProgress(0.2, 30);
-    result = find_update_img(update_file, hdr);
-    if(result) {
-    	ui->SetBackground(RecoveryUI::ERROR);
-           ui->Print("Can not found firmware image or invalid image.\n");
-	    return 1;
+
+
+    if(strncmp(update_file, "/mnt/external_sd", 16) == 0){
+        ensure_sd_mounted();
+    }else if(strncmp(update_file, "/mnt/usb_storage", 16) == 0){
+        ensure_usb_mounted();
+    }
+	char really_path[100];
+	if(strncmp(update_file, "/mnt/media_rw/", 14) == 0){
+		//external_sd
+		LOGI("try to read update.img from /mnt/external_sd");
+		strcpy(really_path, "/mnt/external_sd/");
+		//ensure_sd_mounted();
+		strcat(really_path, "update.img");
+		result = find_update_img(really_path, hdr);
+		if(result){
+			//usb_storage
+			LOGI("try to read update.img from /mnt/usb_storage");
+			strcpy(really_path, "/mnt/usb_storage/");
+			ensure_usb_mounted();
+			strcat(really_path, "update.img");
+			result = find_update_img(really_path, hdr);
+			if(result){
+				ui->SetBackground(RecoveryUI::ERROR);
+				ui->Print("Can not found firmware image or invalid image.\n");
+				return 1;
+			}
+		}
+	}else{
+		strcpy(really_path, update_file);
+		result = find_update_img(update_file, hdr);
+		if(result) {
+			ui->SetBackground(RecoveryUI::ERROR);
+		       ui->Print("Can not found firmware image or invalid image.\n");
+		    return 1;
+		}
 	}
 
-    strcpy(g_package_target, update_file);
-	
+	strcpy(g_package_target, really_path);
     LOGI("g_package_target=%s\n", g_package_target);
-	
 
 #if 1
     ui->Print("!!! Please KEEP your USB cable or DC-in connected !!!\n");
-   	if( !strncmp( update_file, "/sdcard", strlen("/sdcard")) )
+   	if( !strncmp( really_path, "/sdcard", strlen("/sdcard")) )
         	ui->Print("!!! Do NOT remove SD card form the device !!!\n");
 
 #if 1
@@ -1946,7 +1972,8 @@ int install_rkimage(const char* update_file) {
     ensure_path_unmounted(SYSTEM_PARTITION_MOUNT_PATH);
 #endif
 
-	if( !strncmp(update_file, "/mnt/external_sd", 16) ) {
+	if( !strncmp(really_path, "/mnt/external_sd", 16)
+		|| !(strncmp(really_path, "/mnt/usb_storage", 16)) ) {
 		ui->Print("Check parameter...\n");
    	    if(image_compare("parameter", "/parameter", 0)) {
    	    	ui->Print("Update parameter...\n");
@@ -1967,7 +1994,7 @@ int install_rkimage(const char* update_file) {
    	        memset(&boot, 0, sizeof(boot));
    	        strlcpy(boot.command, "boot-recovery", sizeof(boot.command));
    	        char cmd[100] = "recovery\n--update_rkimage=";
-   	        strcat(cmd, update_file);
+   	        strcat(cmd, really_path);
    	        strlcpy(boot.recovery, cmd, sizeof(boot.recovery));
    	        set_bootloader_message(&boot);
 
@@ -2102,7 +2129,7 @@ int install_rkimage(const char* update_file) {
 		RegisterInstallFunctions();
    		FinishRegistration();
 
-		result = handle_update_script(update_file, pItem);
+		result = handle_update_script(really_path, pItem);
 		if(result == -1) {
 		    ui->Print("handle script error! ignore...\n");
 		}else {

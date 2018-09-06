@@ -130,7 +130,8 @@ int ensure_path_mounted(const char* path) {
         }
         return mtd_mount_partition(partition, v->mount_point, v->fs_type, 0);
     } else if (strcmp(v->fs_type, "ext4") == 0 ||
-               strcmp(v->fs_type, "ext3") == 0) {
+               strcmp(v->fs_type, "ext3") == 0 ||
+               strcmp(v->fs_type, "f2fs") == 0) {
         result = mount(v->blk_device, v->mount_point, v->fs_type,
                        MS_NOATIME | MS_NODEV | MS_NODIRATIME, "");
         if (result == 0) return 0;
@@ -401,6 +402,7 @@ int erase_persistent_partition() {
     return (int) oem_unlock_enabled;
 }
 
+extern char EX_SDCARD_ROOT[256];
 int setup_install_mounts() {
     if (fstab == NULL) {
         LOGE("can't set up install mounts: no fstab loaded\n");
@@ -418,8 +420,13 @@ int setup_install_mounts() {
 
         } else {
             if (ensure_path_unmounted(v->mount_point) != 0) {
-                LOGE("failed to unmount %s\n", v->mount_point);
-                return -1;
+                if(strcmp(v->mount_point, EX_SDCARD_ROOT) == 0) {
+                    //nothing
+                    printf("%s line=%d skip external sd \n", __FUNCTION__, __LINE__);
+                } else {
+                    LOGE("failed to unmount %s\n", v->mount_point);
+                    return -1;
+                }
             }
         }
     }

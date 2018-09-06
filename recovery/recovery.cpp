@@ -120,13 +120,14 @@ static const char *LAST_INSTALL_FILE = "/cache/recovery/last_install";
 static const char *LOCALE_FILE = "/cache/recovery/last_locale";
 static const char *CACHE_ROOT = "/cache";
 static const char *USB_ROOT = "/mnt/usb_storage";
-static const char *SDCARD_ROOT = "/sdcard";
+static const char *SDCARD_ROOT = "/mnt/external_sd";
 static const char *TEMPORARY_LOG_FILE = "/tmp/recovery.log";
 static const char *TEMPORARY_INSTALL_FILE = "/tmp/last_install";
 static char IN_SDCARD_ROOT[256] = "\0";
-static char EX_SDCARD_ROOT[256] = "\0";
+char EX_SDCARD_ROOT[256] = "\0";
 static char USB_DEVICE_PATH[128] = "\0";
 static char updatepath[128] = "\0";
+static char updatepath_for_android[128] = "\0";
 bool bNeedClearMisc=true;
 bool bAutoUpdateComplete = false;
 bool bFactoryMode = false;
@@ -416,7 +417,7 @@ int mount_usb_device()
 	if(d != NULL) {
 		while(de = readdir(d)) {
 			printf("/dev/block/%s\n", de->d_name);
-			if((strncmp(de->d_name, "sd", 2) == 0) &&(isdigit(de->d_name[strlen(de->d_name)-1])!=0)){
+			if((strncmp(de->d_name, "sd", 2) == 0) &&(isxdigit(de->d_name[strlen(de->d_name)-1])!=0)){
 				memset(usbDevice, 0, sizeof(usbDevice));
 				sprintf(usbDevice, "/dev/block/%s", de->d_name);
 				printf("try to mount usb device %s by vfat", usbDevice);
@@ -819,7 +820,7 @@ finish_recovery(const char *send_intent) {
 			LOGE("Can't open %s\n", FLAG_FILE);
 		}
 		char strflag[160]="success$path=";
-		strcat(strflag,updatepath);
+		strcat(strflag,updatepath_for_android);
 		if (fwrite(strflag, 1, sizeof(strflag), fp) != sizeof(strflag)) {
 			LOGE("write %s failed! \n", FLAG_FILE);
 		}
@@ -1619,12 +1620,13 @@ void checkSDRemoved() {
 	}
 
 	while(1) {
-		int value2 = -1;
+		//int value2 = -1;
 		int value = access(v->blk_device, 0);
-		if(sec_dev) {
-			value2 = access(sec_dev, 0);
-		}
-		if(value == -1 && value2 == -1) {
+		//if(sec_dev) {
+		//	value2 = access(sec_dev, 0);
+		//}
+		//if(value == -1 && value2 == -1) {
+		if(value == -1) {
 			printf("remove sdcard\n");
 			break;
 		}else {
@@ -1929,6 +1931,16 @@ void copy_log_to_sd(){
     //add by kaihui --end
 }
 
+void set_updatepath_for_android(const char *fileName){          
+    printf("in set_updatepath_for_android --- %s.\n", fileName);
+    if(fileName[0] == '@'){
+        strcpy(updatepath_for_android, "/data/media/0/update.zip");
+    }else{
+        strcpy(updatepath_for_android, fileName);
+    }
+    printf("out updatepath_for_android is %s.\n", updatepath_for_android);
+}
+
 int
 main(int argc, char **argv) {
     time_t start = time(NULL);
@@ -2136,12 +2148,14 @@ main(int argc, char **argv) {
                    update_package, modified_path);
             update_package = modified_path;
         }
+		set_updatepath_for_android(update_package); 
     }
     printf("\n");
     if (update_rkimage) {
         // For backwards compatibility on the cache partition only, if
         // we're given an old 'root' path "CACHE:foo", change it to
         // "/cache/foo".
+		set_updatepath_for_android(update_rkimage); 
         ui->Print("RK image: %s\n", update_rkimage);
 
     }

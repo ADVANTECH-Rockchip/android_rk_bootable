@@ -217,6 +217,13 @@ really_install_package(const char *path, bool* wipe_cache, bool needs_mount)
             ensure_path_mounted(path);
         }
     }
+
+    if(strncmp(path, "/mnt/external_sd", 16) == 0){
+        ensure_sd_mounted();
+    }else if(strncmp(path, "/mnt/usb_storage", 16) == 0){
+        ensure_usb_mounted();
+    }
+
     MemMapping map;
     if(strncmp(path, "/mnt/media_rw", 13) == 0){
         //external_sd
