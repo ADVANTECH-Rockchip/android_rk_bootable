@@ -144,6 +144,7 @@ bool modified_flash = false;
 std::string stage;
 const char* reason = nullptr;
 struct selabel_handle* sehandle;
+bool bWipeAfterUpdate = false;
 
 // define for preinstall apk
 #define DELETE_APK_LEN 4*1024
@@ -1879,6 +1880,15 @@ int main(int argc, char **argv) {
     } else if (sdboot_update_package != NULL) {
         printf("bSDBoot = %d, sdboot_update_package=%s\n", rksdboot.isSDboot(), sdboot_update_package);
         status = rksdboot.do_rk_mode_update(sdboot_update_package);
+        if (status!=INSTALL_SUCCESS){
+            //SET_ERROR_AND_JUMP("fail to update from sd.", status, INSTALL_ERROR, HANDLE_STATUS);
+            bAutoUpdateComplete = false;
+        }else{
+            bAutoUpdateComplete = true;
+//            #ifdef WIPE_AFTER_UPDATE
+            bWipeAfterUpdate = true;
+//            #endif
+        }
     } else if (should_wipe_data || resize_partition) {
         if (resize_partition !=1) {
             if (!wipe_data(device)) {
@@ -1998,6 +2008,10 @@ int main(int argc, char **argv) {
 	        }
 	    }
 	}
+
+    if(bWipeAfterUpdate){
+        wipe_data(device);
+    }
 
     rksdboot.check_device_remove();
     // Save logs and clean up before rebooting or shutting down.
