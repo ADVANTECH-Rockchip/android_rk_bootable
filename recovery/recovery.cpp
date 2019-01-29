@@ -1492,7 +1492,7 @@ int do_sd_mode_update(const char *pFile)
     else if (strcmp(pFile,"2")==0)
     {
         strcat(pFwPath, "/sdupdate.img");
-        bUpdateIDBlock = false;
+        //bUpdateIDBlock = false;
     }
     else
     {
